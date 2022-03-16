@@ -8,6 +8,28 @@ pyenv local link-prediction
 pip install -r requirements.txt
 ```
 
+## Database creation
+
+First the graph is preprocessed in order to create a dataset.
+
+This can be done with a script:
+
+```python -m src.graph.preprocessing --OPTIONS```
+
+Script usage:
+
+```
+usage: preprocessing.py [-h] [--subgraphratio SUBGRAPHRATIO]
+                        [--tainsetratio TAINSETRATIO]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --subgraphratio SUBGRAPHRATIO
+                        Part of the graph to use
+  --tainsetratio TAINSETRATIO
+                        Ratio of the training part of the dataset
+```
+
 ## Run experiments
 
 The main script can be called this way: 
