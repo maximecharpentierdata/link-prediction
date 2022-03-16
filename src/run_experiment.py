@@ -7,18 +7,24 @@ import networkx as nx
 import numpy as np
 
 from src.classification.classical import (
-    generate_submission_data_classical_model, make_classication_lr,
-    make_classication_rf, make_classication_svm, make_classication_xgboost)
+    generate_submission_data_classical_model,
+    make_classication_lr,
+    make_classication_rf,
+    make_classication_svm,
+    make_classication_xgboost,
+)
 from src.classification.nn import (
     generate_submission_data_for_neural_networks,
-    make_classification_neural_network)
+    make_classification_neural_network,
+)
 from src.features_extraction import feature_extractor
-from src.graph.features import (graph_feature_extractor,
-                                graph_learned_features_extractor,
-                                run_graph_learning)
+from src.graph.features import (
+    graph_feature_extractor,
+    graph_learned_features_extractor,
+    run_graph_learning,
+)
 from src.graph.preprocessing import create_graph, load_graph_data
-from src.metadata.features import (metadata_features_extractor,
-                                   tfidf_abstract_extractor)
+from src.metadata.features import metadata_features_extractor, tfidf_abstract_extractor
 
 
 def fetch_submission_features(
@@ -42,18 +48,42 @@ def fetch_submission_features(
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--metadata_features", action=argparse.BooleanOptionalAction, default=False
+        "--metadata_features",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Add the option for using metadata features (authors, years, title)",
     )
     parser.add_argument(
-        "--graph_features", action=argparse.BooleanOptionalAction, default=False
+        "--graph_features",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Add the option for using basic graph features",
     )
     parser.add_argument(
-        "--graph_learned_features", action=argparse.BooleanOptionalAction, default=False
+        "--graph_learned_features",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Add the option for using advanced learned graph features with Word2Vec",
     )
-    parser.add_argument("--tfidf", action=argparse.BooleanOptionalAction, default=False)
-    parser.add_argument("--experiment", type=str, default="1.0_0.8")
-    parser.add_argument("--classification", type=str, default="nn")
-    parser.add_argument("--submission_name", type=str)
+    parser.add_argument(
+        "--tfidf",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Add the option for using advanced textual information from the abstract with TFIDF",
+    )
+    parser.add_argument(
+        "--experiment", type=str, default="1.0_0.8", help="Choose the experiment"
+    )
+    parser.add_argument(
+        "--classification",
+        type=str,
+        default="nn",
+        choices=["nn", "lr", "rf", "xgboost", "svm"],
+        help="Choose a classifier",
+    )
+    parser.add_argument(
+        "--submission_name", type=str, help="Name for the submission file"
+    )
     return parser.parse_args()
 
 
