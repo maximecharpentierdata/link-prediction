@@ -201,8 +201,15 @@ def load_graph_data(path: str):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--subgraphratio", type=float, default=0.8)
-    parser.add_argument("--tainsetratio", type=float, default=0.8)
+    parser.add_argument(
+        "--subgraphratio", type=float, default=0.8, help="Part of the graph to use"
+    )
+    parser.add_argument(
+        "--tainsetratio",
+        type=float,
+        default=0.8,
+        help="Ratio of the training part of the dataset",
+    )
     return parser.parse_args()
 
 
