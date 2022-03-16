@@ -69,15 +69,19 @@ def graph_feature_extractor(
 # Graph learned features
 
 
-def generate_random_walk(graph, root, L):
-    """
-    :param graph: networkx graph
-    :param root: the node where the random walk starts
-    :param L: the length of the walk
-    :return walk: list of the nodes visited by the random walk
+def generate_random_walk(graph: nx.Graph, root: str, length: int) -> List[str]:
+    """Generates a random walk
+
+    Args:
+        graph (nx.Graph): Graph
+        root (str): Root node of the walk
+        length (int): Length of the walk
+
+    Returns:
+        List[str]: Walk
     """
     walk = [root]
-    while len(walk) < L:
+    while len(walk) < length:
         neighbors = list(graph.neighbors(walk[-1]))
         if len(neighbors) > 0:
             choice = np.random.choice(len(neighbors), 1)[0]
@@ -87,23 +91,35 @@ def generate_random_walk(graph, root, L):
     return walk
 
 
-def deep_walk(graph, N, L):
-    """
-    :param graph: networkx graph
-    :param N: the number of walks for each node
-    :param L: the walk length
-    :return walks: the list of walks
+def deep_walk(graph: nx.Graph, walks_number: int, walk_length: int) -> List[List[str]]:
+    """Generates multiple random walks
+
+    Args:
+        graph (nx.Graph): Graph
+        walks_number (int): Number of random walks
+        walk_length (int): Length of each random walk
+
+    Returns:
+        List[List[str]]: Random walks
     """
     walks = []
 
     nodes = list(graph.nodes())
-    roots = [nodes[index] for index in np.random.choice(len(nodes), N)]
+    roots = [nodes[index] for index in np.random.choice(len(nodes), walks_number)]
     for root in tqdm(roots):
-        walks.append(generate_random_walk(graph, root, L))
+        walks.append(generate_random_walk(graph, root, walk_length))
     return walks
 
 
-def run_graph_learning(graph: nx.Graph):
+def run_graph_learning(graph: nx.Graph) -> word2vec.KeyedVectors:
+    """Trains a Word2Vec model on a graph
+
+    Args:
+        graph (nx.Graph): Graph
+
+    Returns:
+        word2vec.KeyedVectors: Trained Word2Vec
+    """
     nodes = list(graph.nodes)
 
     num_of_walks = 3000
@@ -134,7 +150,18 @@ def run_graph_learning(graph: nx.Graph):
 
 def graph_learned_features_extractor(
     graph: nx.Graph, samples: List[Tuple[str, str]], path: str, wv
-):
+) -> np.ndarray:
+    """Computes the learned graph features
+
+    Args:
+        graph (nx.Graph): Graph
+        samples (List[Tuple[str, str]]): Edge samples
+        path (str): Path for the node information file
+        wv (_type_): Word2Vec model
+
+    Returns:
+        np.ndarray: Features vector
+    """
     feature_func = lambda x, y: abs(x - y)
 
     feature_vector = []

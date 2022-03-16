@@ -6,7 +6,16 @@ import pandas as pd
 from sklearn.metrics import f1_score, roc_auc_score, roc_curve
 
 
-def show_roc_and_f1(test_labels: List[int], test_preds: List[float]):
+def _show_roc_and_f1(test_labels: List[int], test_preds: List[float]) -> float:
+    """Show ROC curve and F1 score
+
+    Args:
+        test_labels (List[int]): Test labels
+        test_preds (List[float]): Test predictions
+
+    Returns:
+        float: Optimal threshold
+    """
     fpr, tpr, thresholds = roc_curve(test_labels, test_preds)
     roc_auc = roc_auc_score(test_labels, test_preds)
 
@@ -26,7 +35,7 @@ def show_roc_and_f1(test_labels: List[int], test_preds: List[float]):
     return th
 
 
-def generate_submission_data(submit_preds: List[int], name: str):
+def _generate_submission_data(submit_preds: List[int], name: str):
     submission_df = pd.DataFrame(dict(category=submit_preds))
     submission_df = submission_df.reset_index()
     submission_df.columns = ["id", "category"]

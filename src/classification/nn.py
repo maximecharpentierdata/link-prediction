@@ -6,15 +6,26 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
-from src.classification.utils import generate_submission_data, show_roc_and_f1
+from src.classification.utils import _generate_submission_data, _show_roc_and_f1
 
 
-def train(
+def _train(
     dataloader: DataLoader,
     model: nn.Module,
     loss_fn: Callable,
     optimizer: torch.optim.Optimizer,
 ) -> List[float]:
+    """Train function for one epoch
+
+    Args:
+        dataloader (DataLoader): Dataloader
+        model (nn.Module): Model
+        loss_fn (Callable): Loss function
+        optimizer (torch.optim.Optimizer): Optimizer
+
+    Returns:
+        List[float]: Losses
+    """
     model.train()
     losses = []
     for batch, (X, y) in tqdm(enumerate(dataloader), total=len(dataloader)):
@@ -32,7 +43,17 @@ def train(
     return losses
 
 
-def test(dataloader: DataLoader, model: nn.Module, loss_fn: Callable):
+def _test(dataloader: DataLoader, model: nn.Module, loss_fn: Callable) -> List[float]:
+    """Test function for one epoch
+
+    Args:
+        dataloader (DataLoader): Dataloader
+        model (nn.Module): Model
+        loss_fn (Callable): Loss function
+
+    Returns:
+        List[float]: Test losses
+    """
     model.eval()
     losses = []
     for batch, (X, y) in tqdm(enumerate(dataloader), total=len(dataloader)):
@@ -48,6 +69,15 @@ def test(dataloader: DataLoader, model: nn.Module, loss_fn: Callable):
 def make_classification_model_neural_network(
     input_features: np.ndarray,
 ) -> Tuple[nn.Module, torch.optim.Optimizer, Callable]:
+    """Generates Classification Neural Network
+
+    Args:
+        input_features (np.ndarray): Input features
+
+    Returns:
+        Tuple[nn.Module, torch.optim.Optimizer, Callable]: Model,
+        optimizer and loss function
+    """
     model = nn.Sequential(
         nn.Linear(input_features, 50),
         nn.ReLU(),
@@ -67,6 +97,18 @@ def prepare_data_for_neural_networks(
     test_features: np.ndarray,
     test_labels: np.ndarray,
 ) -> Tuple[DataLoader, DataLoader, Tuple[torch.Tensor, torch.Tensor]]:
+    """Prepares data for the training of the neural network classifier
+
+    Args:
+        train_features (np.ndarray): Train features
+        train_labels (np.ndarray): Train labels
+        test_features (np.ndarray): Test features
+        test_labels (np.ndarray): Test labels
+
+    Returns:
+        Tuple[DataLoader, DataLoader, Tuple[torch.Tensor, torch.Tensor]]: Train loader,
+        Test loader, (mean, std) for then standardization
+    """
     train_tensor_features = torch.Tensor(train_features)
     train_tensor_labels = torch.Tensor(train_labels)[
         ..., None
@@ -96,6 +138,18 @@ def make_classification_neural_network(
     test_features: np.ndarray,
     test_labels: np.ndarray,
 ) -> Tuple[nn.Module, float, Tuple[torch.Tensor, torch.Tensor]]:
+    """Runs the full classification pipeline with a neural network
+
+    Args:
+        train_features (np.ndarray): Train features
+        train_labels (np.ndarray): Train labels
+        test_features (np.ndarray): Test features
+        test_labels (np.ndarray): Test labels
+
+    Returns:
+        Tuple[nn.Module, float, Tuple[torch.Tensor, torch.Tensor]]: Model,
+        threshold, (mean, std) for the standardization
+    """
     model, optimizer, loss_fn = make_classification_model_neural_network(
         train_features.shape[1]
     )
@@ -109,8 +163,8 @@ def make_classification_neural_network(
 
     for epoch in range(num_epochs):
         print(f"Epoch {epoch}/{num_epochs}...")
-        epoch_train_losses = train(train_loader, model, loss_fn, optimizer)
-        epoch_test_losses = test(test_loader, model, loss_fn)
+        epoch_train_losses = _train(train_loader, model, loss_fn, optimizer)
+        epoch_test_losses = _test(test_loader, model, loss_fn)
         train_losses.append(np.mean(epoch_train_losses))
         print("Train ", train_losses[-1])
         test_losses.append(np.mean(epoch_test_losses))
@@ -119,7 +173,7 @@ def make_classification_neural_network(
     model.eval()
     test_preds = [model(feature) for feature, label in test_loader]
     test_preds = torch.Tensor(test_preds).tolist()
-    th = show_roc_and_f1(test_labels, test_preds)
+    th = _show_roc_and_f1(test_labels, test_preds)
     return model, th, (mean, std)
 
 
@@ -131,6 +185,16 @@ def generate_submission_data_for_neural_networks(
     std: torch.Tensor,
     name: str,
 ):
+    """Generate the submission csv for the Kaggle Challenge
+
+    Args:
+        model (nn.Module): Model
+        th (float): Threshold
+        features (np.ndarray): Features
+        mean (torch.Tensor): Mean for the standardization
+        std (torch.Tensor): Std for the standardization
+        name (str): Name of the submission csv file
+    """
     features = (features - mean.numpy()) / std.numpy()
     submit_loader = DataLoader(features, batch_size=1, shuffle=False)
 
@@ -138,4 +202,4 @@ def generate_submission_data_for_neural_networks(
     submit_preds = [
         int(model(feature.float())[0].item() > th) for feature in submit_loader
     ]
-    generate_submission_data(submit_preds, name)
+    _generate_submission_data(submit_preds, name)

@@ -10,7 +10,17 @@ from tqdm import tqdm
 # Metadata based features
 def metadata_features_extractor(
     graph: nx.Graph, samples: List[Tuple[str, str]], path: str
-):
+) -> np.ndarray:
+    """Generates metadata based features
+
+    Args:
+        graph (nx.Graph): Graph
+        samples (List[Tuple[str, str]]): Edge samples
+        path (str): Path for node information
+
+    Returns:
+        np.ndarray: Features
+    """
     feature_vector = []
     df = pd.read_csv(path, header=None)
     df.columns = [
@@ -62,7 +72,7 @@ def metadata_features_extractor(
 
 
 # Textual based features
-def compute_tfidf(
+def _compute_tfidf(
     graph: nx.Graph, samples: List[Tuple[str, str]], path: str, num_features: int = 2500
 ):
     df = pd.read_csv(path, header=None)
@@ -103,8 +113,18 @@ def compute_tfidf(
 
 def tfidf_abstract_extractor(
     graph: nx.Graph, samples: List[Tuple[str, str]], path: str
-):
-    source_features, target_features = compute_tfidf(graph, samples, path)
+) -> np.ndarray:
+    """Computes TFIDF based features
+
+    Args:
+        graph (nx.Graph): Graph
+        samples (List[Tuple[str, str]]): Edge samples
+        path (str): Path for node information
+
+    Returns:
+        np.ndarray: Features
+    """
+    source_features, target_features = _compute_tfidf(graph, samples, path)
     multiplied = np.multiply(source_features, target_features)
     summed = np.sum(multiplied, axis=1)
     return summed
