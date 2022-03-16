@@ -1,9 +1,17 @@
-from typing import List, Tuple, Callable
+import hashlib
+import os
+import pickle
+from typing import Callable, List, Tuple
 
+import gensim.models.keyedvectors as word2vec
 import networkx as nx
-from tqdm import tqdm
 import numpy as np
 import pandas as pd
+from gensim.models import Word2Vec
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
+
+# Manual Graph-based features
 
 
 def graph_feature_extractor(
@@ -22,6 +30,7 @@ def graph_feature_extractor(
     feature_vector = []
 
     deg_centrality = nx.degree_centrality(graph)
+    # betweeness_centrality = nx.betweenness_centrality(graph)
 
     # --- Extract manually diverse features relative to each edge contained in samples ---
 
@@ -60,6 +69,9 @@ def graph_feature_extractor(
         )
 
     return np.array(feature_vector)
+
+
+# Metadata based features
 
 
 def metadata_features_extractor(
@@ -115,11 +127,172 @@ def metadata_features_extractor(
     return np.array(feature_vector)
 
 
+# Textual based features
+
+
+def transform_abstracts(samples, path):
+    df = pd.read_csv(path, header=None)
+    df.columns = [
+        "id",
+        "publication_year",
+        "title",
+        "authors",
+        "journal_name",
+        "abstract",
+    ]
+
+    df = df.groupby("id")
+
+    sample_hash = hashlib.sha224(str(samples).encode()).hexdigest()
+
+    if os.path.isfile(f"../cache/{sample_hash}"):
+        with open(f"../cache/{sample_hash}", "rb") as file:
+            cache_data = pickle.load(file)
+        source_abstracts_encoded = cache_data["source_abstracts_encoded"]
+        target_abstracts_encoded = cache_data["target_abstracts_encoded"]
+    else:
+        model = SentenceTransformer("multi-qa-MiniLM-L6-cos-v1")
+        source_abstracts = []
+        target_abstracts = []
+        for edge in tqdm(samples):
+            source_node, target_node = edge[0], edge[1]
+            source_row = df.get_group(int(source_node)).iloc[0]
+            target_row = df.get_group(int(target_node)).iloc[0]
+            source_abstracts.append(source_row["abstract"])
+            target_abstracts.append(target_row["abstract"])
+
+        source_abstracts_encoded = model.encode(
+            source_abstracts, normalize_embeddings=True
+        )
+        target_abstracts_encoded = model.encode(
+            source_abstracts, normalize_embeddings=True
+        )
+
+        cache_data = dict(
+            source_abstracts_encoded=source_abstracts_encoded,
+            target_abstracts_encoded=target_abstracts_encoded,
+        )
+
+        with open(f"../cache/{sample_hash}", "wb") as file:
+            pickle.dump(cache_data, file)
+
+    return source_abstracts_encoded, target_abstracts_encoded
+
+
+def abstract_extractor_reduced(
+    graph: nx.Graph, samples: List[Tuple[str, str]], path: str
+):
+    source_abstracts_encoded, target_abstracts_encoded = transform_abstracts(
+        samples, path
+    )
+    return np.sum(source_abstracts_encoded * target_abstracts_encoded, axis=1)[
+        ..., np.newaxis
+    ]
+
+
+def abstract_extractor_complete(
+    graph: nx.Graph, samples: List[Tuple[str, str]], path: str
+):
+    source_abstracts_encoded, target_abstracts_encoded = transform_abstracts(
+        samples, path
+    )
+    return np.concatenate([source_abstracts_encoded, target_abstracts_encoded], axis=1)
+
+
+# Graph learned features
+
+
+def generate_random_walk(graph, root, L):
+    """
+    :param graph: networkx graph
+    :param root: the node where the random walk starts
+    :param L: the length of the walk
+    :return walk: list of the nodes visited by the random walk
+    """
+    walk = [root]
+    while len(walk) < L:
+        neighbors = list(graph.neighbors(walk[-1]))
+        if len(neighbors) > 0:
+            choice = np.random.choice(len(neighbors), 1)[0]
+            walk.append(neighbors[choice])
+        else:
+            return walk
+    return walk
+
+
+def deep_walk(graph, N, L):
+    """
+    :param graph: networkx graph
+    :param N: the number of walks for each node
+    :param L: the walk length
+    :return walks: the list of walks
+    """
+    walks = []
+
+    nodes = list(graph.nodes())
+    roots = [nodes[index] for index in np.random.choice(len(nodes), N)]
+    for root in tqdm(roots):
+        walks.append(generate_random_walk(graph, root, L))
+    return walks
+
+
+def run_graph_learning(graph: nx.Graph):
+    nodes = list(graph.nodes)
+
+    num_of_walks = 3000
+    walk_length = 10000
+    embedding_size = 32
+    window_size = 6
+
+    parameters = nodes + [num_of_walks, walk_length, embedding_size, window_size]
+
+    file_hash = hashlib.sha224(str(parameters).encode()).hexdigest()
+
+    model_filename = f"../cache/graph.embedding_{file_hash}"
+
+    if not os.path.isfile(model_filename):
+        # Perform random walks - call function
+        walks = deep_walk(graph, num_of_walks, walk_length)
+        # Learn representations of nodes - use Word2Vec
+        model = Word2Vec(
+            walks, window=window_size, vector_size=embedding_size, hs=1, sg=1
+        )
+        # Save the embedding vectors
+        model.wv.save_word2vec_format(model_filename)
+    else:
+        model = Word2Vec()
+        model.wv = word2vec.KeyedVectors.load_word2vec_format(model_filename)
+    return model.wv
+
+
+def graph_learned_features_extractor(
+    graph: nx.Graph, samples: List[Tuple[str, str]], path: str, wv
+):
+    feature_func = lambda x, y: abs(x - y)
+
+    feature_vector = []
+
+    for edge in tqdm(samples):
+        try:
+            embed_1 = wv[edge[0]]
+        except:
+            embed_1 = np.zeros(32)
+        try:
+            embed_2 = wv[edge[1]]
+        except:
+            embed_2 = np.zeros(32)
+
+        feature_vector.append(feature_func(embed_1, embed_2))
+
+    return np.array(feature_vector)
+
+
 def feature_extractor(
     graph: nx.Graph,
     samples: List[Tuple[str, str]],
     features_method: List[Callable] = [graph_feature_extractor],
     node_information_path: str = "data/node_information.csv",
+    wv=None,
 ) -> np.ndarray:
     """Compute features of given edges
 
@@ -134,6 +307,13 @@ def feature_extractor(
     """
     feature_vectors = []
     for feature_method in features_method:
-        feature_vectors.append(feature_method(graph, samples, node_information_path))
+        if feature_method == graph_learned_features_extractor:
+            feature_vectors.append(
+                feature_method(graph, samples, node_information_path, wv)
+            )
+        else:
+            feature_vectors.append(
+                feature_method(graph, samples, node_information_path)
+            )
     feature_vector = np.concatenate(feature_vectors, axis=1)
     return feature_vector

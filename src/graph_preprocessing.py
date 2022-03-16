@@ -1,9 +1,9 @@
 import argparse
-import os
-from typing import List, Tuple
-import random
-import json
 import csv
+import json
+import os
+import random
+from typing import List, Tuple
 
 import networkx as nx
 import numpy as np
@@ -201,7 +201,7 @@ def load_graph_data(path: str):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--subgraphratio", type=float, default=0.4)
+    parser.add_argument("--subgraphratio", type=float, default=0.8)
     parser.add_argument("--tainsetratio", type=float, default=0.8)
     return parser.parse_args()
 

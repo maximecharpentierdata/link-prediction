@@ -1,12 +1,12 @@
-import random
 import csv
-import numpy as np
+import random
+
 import igraph
-from sklearn import svm
+import nltk
+import numpy as np
+from sklearn import preprocessing, svm
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import linear_kernel
-from sklearn import preprocessing
-import nltk
 
 nltk.download("punkt")  # for tokenization
 nltk.download("stopwords")
