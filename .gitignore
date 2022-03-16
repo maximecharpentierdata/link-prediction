@@ -133,3 +133,7 @@ experiments/*/*
 
 # MacOS
 .DS_Store
+
+# Cache
+cache
+submission*.csv
