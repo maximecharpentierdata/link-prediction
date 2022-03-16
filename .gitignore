@@ -136,4 +136,4 @@ submissions/*
 .DS_Store
 
 # Cache
-cache
+cache/graph.*
