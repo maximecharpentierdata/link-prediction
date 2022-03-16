@@ -130,10 +130,10 @@ dmypy.json
 
 # Experiments
 experiments/*/*
+submissions/*
 
 # MacOS
 .DS_Store
 
 # Cache
 cache
-submission*.csv

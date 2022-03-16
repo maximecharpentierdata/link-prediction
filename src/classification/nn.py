@@ -1,12 +1,12 @@
 from typing import Callable, List, Tuple
 
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
-from sklearn.metrics import f1_score, roc_auc_score, roc_curve
 from torch.utils.data import DataLoader, TensorDataset
+from tqdm import tqdm
+
+from src.classification.utils import generate_submission_data, show_roc_and_f1
 
 
 def train(
@@ -17,7 +17,7 @@ def train(
 ) -> List[float]:
     model.train()
     losses = []
-    for batch, (X, y) in enumerate(dataloader):
+    for batch, (X, y) in tqdm(enumerate(dataloader), total=len(dataloader)):
         # Compute prediction error
         pred = model(X)
         loss = loss_fn(pred, y)
@@ -35,7 +35,7 @@ def train(
 def test(dataloader: DataLoader, model: nn.Module, loss_fn: Callable):
     model.eval()
     losses = []
-    for batch, (X, y) in enumerate(dataloader):
+    for batch, (X, y) in tqdm(enumerate(dataloader), total=len(dataloader)):
         # Compute prediction error
         pred = model(X)
         loss = loss_fn(pred, y)
@@ -105,7 +105,7 @@ def make_classification_neural_network(
     train_losses = []
     test_losses = []
 
-    num_epochs = 30
+    num_epochs = 10
 
     for epoch in range(num_epochs):
         print(f"Epoch {epoch}/{num_epochs}...")
@@ -119,22 +119,7 @@ def make_classification_neural_network(
     model.eval()
     test_preds = [model(feature) for feature, label in test_loader]
     test_preds = torch.Tensor(test_preds).tolist()
-    fpr, tpr, thresholds = roc_curve(test_labels, test_preds)
-    roc_auc = roc_auc_score(test_labels, test_preds)
-
-    plt.figure(figsize=(6, 6))
-    plt.plot(fpr, tpr, color="darkred", label="ROC curve (area = %0.3f)" % roc_auc)
-    plt.plot([0, 1], [0, 1], color="lightgray", linestyle="--")
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("Receiver Operating Characteristic Curve")
-    plt.legend(loc="lower right")
-    plt.show()
-
-    th = thresholds[np.argmax(tpr - fpr)]
-    print("f1 score", f1_score(test_labels, [pred > th for pred in test_preds]))
+    th = show_roc_and_f1(test_labels, test_preds)
     return model, th, (mean, std)
 
 
@@ -146,15 +131,11 @@ def generate_submission_data_for_neural_networks(
     std: torch.Tensor,
     name: str,
 ):
-    features = (features - mean) / std
-
+    features = (features - mean.numpy()) / std.numpy()
     submit_loader = DataLoader(features, batch_size=1, shuffle=False)
 
     model.eval()
     submit_preds = [
         int(model(feature.float())[0].item() > th) for feature in submit_loader
     ]
-    submission_df = pd.DataFrame(dict(category=submit_preds))
-    submission_df = submission_df.reset_index()
-    submission_df.columns = ["id", "category"]
-    submission_df.to_csv(f"../submission_{name}.csv", index=None)
+    generate_submission_data(submit_preds, name)
